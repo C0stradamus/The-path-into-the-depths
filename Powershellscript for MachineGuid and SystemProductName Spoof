@@ -1,0 +1,45 @@
+# PowerShell script for HWID spoofing: Changing MachineGuid and SystemProductName
+# Requirement: Run the script as Administrator!
+
+# Check for admin rights and restart script with elevation if not run as admin
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Host "Restarting script with administrator rights..."
+    Start-Process powershell "-ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
+function New-Guid {
+    return [guid]::NewGuid().ToString()
+}
+
+Write-Host "Spoofer starting..."
+
+try {
+    # 1. Change MachineGuid
+    $pathMachineGuid = "HKLM:\SOFTWARE\Microsoft\Cryptography"
+    $valueNameMachineGuid = "MachineGuid"
+    $oldMachineGuid = (Get-ItemProperty -Path $pathMachineGuid -Name $valueNameMachineGuid -ErrorAction Stop).$valueNameMachineGuid
+    Write-Host "Old MachineGuid: $oldMachineGuid"
+    $newMachineGuid = New-Guid
+    Set-ItemProperty -Path $pathMachineGuid -Name $valueNameMachineGuid -Value $newMachineGuid
+    Write-Host "New MachineGuid set: $newMachineGuid"
+} catch {
+    Write-Warning "Could not change MachineGuid: $_"
+}
+
+try {
+    # 2. Change SystemProductName (virtual system UUID)
+    $pathSystemInfo = "HKLM:\SYSTEM\CurrentControlSet\Control\SystemInformation"
+    $valueNameSystemProduct = "SystemProductName"
+    $oldSystemProductName = (Get-ItemProperty -Path $pathSystemInfo -Name $valueNameSystemProduct -ErrorAction Stop).$valueNameSystemProduct
+    Write-Host "Old SystemProductName: $oldSystemProductName"
+    $newSystemProductName = New-Guid
+    Set-ItemProperty -Path $pathSystemInfo -Name $valueNameSystemProduct -Value $newSystemProductName
+    Write-Host "New virtual SystemProductName set: $newSystemProductName"
+} catch {
+    Write-Warning "Could not change SystemProductName: $_"
+}
+
+Write-Warning "MAC address is not changed automatically. Too many different hardware and driver versions :D."
+
+Write-Host "Script finished. Please restart your PC to apply all changes."
